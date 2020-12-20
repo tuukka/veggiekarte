@@ -2,7 +2,26 @@
 "use strict";
 
 // Define marker groups
-let parentGroup = L.markerClusterGroup({showCoverageOnHover: false, maxClusterRadius: 20});
+// let parentGroup = L.markerClusterGroup({showCoverageOnHover: false, maxClusterRadius: 20});
+const clusterIndex = new Supercluster({
+  radius: 40,
+  maxZoom: 17
+});
+let parentGroup = L.geoJson(null, {
+  pointToLayer: (feature, latlng) => {
+    if (!feature.properties.cluster) return getMarker(feature);
+    let size = (feature.properties.point_count < 10) ? 'small' :
+               (feature.properties.point_count < 100) ? 'medium' :
+               'large';
+    return L.marker(latlng, {
+      icon: L.divIcon({
+        html: "<div><span>" + feature.properties.point_count + "</span></div>",
+        className: "marker-cluster marker-cluster-" + size,
+      iconSize: [40, 40]
+      })
+    });
+  }
+});
 let vegan_only = L.featureGroup.subGroup(parentGroup, {});
 let vegetarian_only = L.featureGroup.subGroup(parentGroup, {});
 let vegan_friendly = L.featureGroup.subGroup(parentGroup, {});
@@ -53,7 +72,11 @@ function veggiemap() {
     if(parentGroup.isPopupOpen()){
       parentGroup.closeTooltip();
     }
-  })
+    if (e.layer.feature.properties.cluster) {
+      map.flyTo(e.latlng, clusterIndex.getClusterExpansionZoom(e.layer.feature.properties.cluster_id));
+      map.closePopup();
+    }
+  });
 
   // Add hash to the url
   let hash = new L.Hash(map);
@@ -133,8 +156,10 @@ function veggiemap_populate(parentGroup) {
   const url = "data/places.min.json";
   fetch(url)
   .then(response => response.json())
-  .then(geojson => geojsonToMarkerGroups(geojson.features))
-  .then(markerGroups => {
+  // .then(geojson => geojsonToMarkerGroups(geojson.features))
+  // .then(markerGroups => {
+  .then((geojson) => {
+    /*
     Object.entries(subgroups).forEach(([key, subgroup]) => {
       // Bulk add all the markers from a markerGroup to a subgroup in one go
       // Source: https://github.com/ghybs/Leaflet.FeatureGroup.SubGroup/issues/5
@@ -143,6 +168,14 @@ function veggiemap_populate(parentGroup) {
     });
     // Reveal all the markers and clusters on the map in one go
     map.addLayer(parentGroup);
+    */
+    const start = new Date();
+    clusterIndex.load(geojson.features);
+    console.log(new Date() - start);
+    updateClusters();
+    map.on('moveend', updateClusters);
+    map.addLayer(parentGroup);
+    console.log(new Date() - start);
 
     // Call the function to put the numbers into the legend
     stat_populate();
@@ -151,6 +184,12 @@ function veggiemap_populate(parentGroup) {
     hideSpinner();
   })
   .catch(error  => {console.log('Request failed', error);});
+}
+
+function updateClusters() {
+  const bounds = map.getBounds();
+  parentGroup.clearLayers();
+  parentGroup.addData(clusterIndex.getClusters([bounds.getWest(), bounds.getSouth(), bounds.getEast(), bounds.getNorth()], map.getZoom()));
 }
 
 // Process the places GeoJSON into the groups of markers
