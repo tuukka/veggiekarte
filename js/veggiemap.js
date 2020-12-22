@@ -134,14 +134,19 @@ function veggiemap_populate(parentGroup) {
   let start;
   fetch(url)
   .then(response => response.json())
-  .then(geojson => { start = new Date(); return geojsonToMarkerGroups(geojson.features); })
-  .then(markerGroups => {
+//  .then(geojson => { return geojsonToMarkerGroups(geojson.features); })
+//  .then(markerGroups => {
+  .then(geojson => {
+    start = new Date();
+    /*
     Object.entries(subgroups).forEach(([key, subgroup]) => {
       // Bulk add all the markers from a markerGroup to a subgroup in one go
       // Source: https://github.com/ghybs/Leaflet.FeatureGroup.SubGroup/issues/5
       subgroup.addLayer(L.layerGroup(markerGroups[key]));
       map.addLayer(subgroup);
     });
+    */
+    parentGroup.addLayers(geojson.features.map(getMarker));
     // Reveal all the markers and clusters on the map in one go
     map.addLayer(parentGroup);
     console.log("Loading blocked for", new Date()-start, "ms.")
