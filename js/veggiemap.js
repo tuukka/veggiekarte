@@ -131,9 +131,10 @@ function onEachFeatureStat(data) {
 // Function to get the information from the places json file.
 function veggiemap_populate(parentGroup) {
   const url = "data/places.min.json";
+  let start;
   fetch(url)
   .then(response => response.json())
-  .then(geojson => geojsonToMarkerGroups(geojson.features))
+  .then(geojson => { start = new Date(); return geojsonToMarkerGroups(geojson.features); })
   .then(markerGroups => {
     Object.entries(subgroups).forEach(([key, subgroup]) => {
       // Bulk add all the markers from a markerGroup to a subgroup in one go
@@ -143,6 +144,7 @@ function veggiemap_populate(parentGroup) {
     });
     // Reveal all the markers and clusters on the map in one go
     map.addLayer(parentGroup);
+    console.log("Loading blocked for", new Date()-start, "ms.")
 
     // Call the function to put the numbers into the legend
     stat_populate();
